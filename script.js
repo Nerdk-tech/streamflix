@@ -1,6 +1,6 @@
 // ====================================================================
 // StreamFlix: script.js - Application Logic and API Integration
-// This file is short and clean, linking to index.html and style.css
+// This file contains all the corrected JavaScript functions.
 // ====================================================================
 
 // --- API CONFIGURATION ---
@@ -34,7 +34,7 @@ function clearSearch() {
 }
 
 // ====================================================================
-// API 4: Fetch and Display the Stream (Defined early)
+// API 4: Fetch and Display the Stream (Robust Error Handling)
 // ====================================================================
 async function fetchAndDisplayStream(subjectId, detailPath, title) {
     const playerSection = document.getElementById('video-player-section');
@@ -55,8 +55,8 @@ async function fetchAndDisplayStream(subjectId, detailPath, title) {
         const response = await fetch(streamUrl);
         const data = await response.json();
 
-        // FIXED: Robust check for required data structure
         if (data && data.data && data.data.resource) {
+            // --- SUCCESS PATH: Video link found in the expected structure ---
             const resource = data.data.resource;
             const videoLink = resource.hls || resource.mp4;
             const finalTitle = title || 'Media Content';
@@ -78,18 +78,26 @@ async function fetchAndDisplayStream(subjectId, detailPath, title) {
                 });
                 
             } else {
-                playerMessage.textContent = 'Error: No direct stream link (HLS or MP4) was found in the API response data.';
-                playerContainer.innerHTML = '<p class="message">Resource not available. Try another title or check back later.</p>';
+                // Video link structure exists, but the link itself is null/empty
+                playerMessage.textContent = 'Error: Resource found, but the direct video link (HLS/MP4) is missing.';
+                playerContainer.innerHTML = '<p class="message">The API is not providing a direct stream link for this content.</p>';
             }
 
         } else if (data && data.status === 'error') {
+            // --- API ERROR PATH: API reports an error status ---
              playerMessage.textContent = `API Error: ${data.message || 'The API returned an error status.'}`;
              playerContainer.innerHTML = '<p class="message">Could not load the streaming resource due to an API error.</p>';
         
+        } else if (data && data.message) {
+            // --- CUSTOM MEDIA FETCH FAILURES: API returns a message instead of data.resource ---
+            playerMessage.textContent = `Media Source Error: ${data.message}`;
+            playerContainer.innerHTML = `<p class="message">The API could not find a playable resource for **${title}**.</p>`;
+            
         } else {
+            // --- CATCH-ALL FAILURE PATH: Unexpected JSON structure ---
             console.error("Unexpected API response structure:", data); 
             playerMessage.textContent = `General Fetch Error: Unknown response structure.`;
-            playerContainer.innerHTML = '<p class="message">An unexpected error occurred during the media fetch.</p>';
+            playerContainer.innerHTML = '<p class="message">An unexpected error occurred during the media fetch. Please check your browser console (F12) for the full response data.</p>';
         }
     } catch (error) {
         console.error("Critical network error during stream fetch:", error);
@@ -98,8 +106,9 @@ async function fetchAndDisplayStream(subjectId, detailPath, title) {
     }
 }
 
+
 // ====================================================================
-// API 3: Fetch and Display Detail Page (Defined early)
+// API 3: Fetch and Display Detail Page
 // ====================================================================
 async function showDetailPage(subjectId, detailPath, title, posterUrl) {
     const detailPage = document.getElementById('detail-page');
@@ -160,17 +169,23 @@ async function showDetailPage(subjectId, detailPath, title, posterUrl) {
 
 
 // ====================================================================
-// Utility to create HTML cards
+// Utility to create HTML cards (Includes ID and Image Safety Checks)
 // ====================================================================
 function createCard(item, containerId) {
+    
+    // --- CRITICAL SAFETY CHECK ---
+    // If these key IDs are missing, the detail page and stream will always fail.
+    if (!item.subjectId || !item.detailPath) {
+        console.warn('Skipping card creation: Missing subjectId or detailPath for item:', item.title);
+        return; 
+    }
+    
     const container = document.getElementById(containerId);
     
-    // Defensive Checks
+    // Defensive Checks for UI elements
     const cardTitle = item.title || 'Title Unknown';
     const cardCoverUrl = item.cover && item.cover.url ? item.cover.url : 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22150%22%20height%3D%22225%22%20viewBox%3D%220%200%20150%20225%22%3E%3Crect%20width%3D%22150%22%20height%3D%22225%22%20fill%3D%22%23333%22%2F%3E%3Ctext%20x%3D%2275%22%20y%3D%22115%22%20fill%3D%22%23E50914%22%20font-size%3D%2214%22%20text-anchor%3D%22middle%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fsvg%3E';
     
-    if (!item.subjectId) return;
-
     const card = document.createElement('div');
     card.className = 'movie-card';
     
